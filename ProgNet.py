@@ -187,9 +187,9 @@ class ProgNet(nn.Module):
             parents = [colRef for colRef in self.columns]
             col = self.colGen.generateColumn(parents, msg)
         if self.colShape is None:
-            self.colShape = col.shape()
+            self.colShape = col.getShape()
         else:
-            assert self.colShape == col.shape()
+            assert self.colShape == col.getShape()
         self.columns.append(col)
         assert not col.colID in self.colMap, "Column ID must be unique."
         self.colMap[col.colID] = self.numCols
