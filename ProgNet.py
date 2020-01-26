@@ -223,6 +223,10 @@ class ProgNet(nn.Module):
         col = self.columns[self.colMap[id]]
         return col.isFrozen
 
+    def getColumn(self, id):
+        assert id in self.colMap, "No column with ID %s found." % str(id)
+        col = self.columns[self.colMap[id]]
+        return col
 
     def forward(self, id, x):
         assert self.numCols > 0, "ProgNet cannot be run without at least one column."
