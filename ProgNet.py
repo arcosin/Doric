@@ -218,6 +218,12 @@ class ProgNet(nn.Module):
         for col in self.columns:
             col.freeze(unfreeze = True)
 
+    def isColumnFrozen(self, id):
+        assert id in self.colMap, "No column with ID %s found." % str(id)
+        col = self.columns[self.colMap[id]]
+        return col.isFrozen
+
+
     def forward(self, id, x):
         assert self.numCols > 0, "ProgNet cannot be run without at least one column."
         assert id in self.colMap, "Selected column has not been registered."
