@@ -189,7 +189,8 @@ class ProgNet(nn.Module):
         if self.colShape is None:
             self.colShape = col.getShape()
         else:
-            assert self.colShape == col.getShape()
+            #assert self.colShape == col.getShape()
+            pass   #TODO: make shape check work with different output sizes.
         self.columns.append(col)
         assert not col.colID in self.colMap, "Column ID must be unique."
         self.colMap[col.colID] = self.numCols
