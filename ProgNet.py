@@ -103,10 +103,10 @@ class ProgColumn(nn.Module):
         self.lastOutputList = []
 
     def freeze(self, unfreeze = False):
-        if not unfreeze:
+        if not unfreeze:    # Freeze params.
             self.isFrozen = True
             for param in self.parameters():   param.requires_grad = False
-        else:
+        else:               # Unfreeze params.
             self.isFrozen = False
             for param in self.parameters():   param.requires_grad = True
 
