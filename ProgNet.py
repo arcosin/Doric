@@ -80,6 +80,11 @@ class ProgInertBlock(ProgBlock):
 A special case of ProgBlock with multiple paths.
 """
 class ProgMultiBlock(ProgBlock):
+    """
+    Returns a list of booleans (pass_list).
+    Length of the pass_list is equal to the number of channels in the block.
+    Channels that return True do not operate on their inputs, and simply pass them to the next block.
+    """
     def getPassDescriptor(self):
         raise NotImplementedError
 
