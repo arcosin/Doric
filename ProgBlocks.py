@@ -46,6 +46,45 @@ class ProgDenseBlock(ProgBlock):
 
 
 
+
+
+"""
+An inert ProgBlock that simply runs the input through python lambda functions.
+Good for resizing or other non-learning ops.
+"""
+class ProgLambdaBlock(ProgInertBlock):
+    def __init__(self, inSize, outSize, lambdaMod):
+        super().__init__()
+        self.numLaterals = numLaterals
+        self.inSize = inSize
+        self.outSize = outSize
+        self.module = lambdaMod
+        self.activation = (lambda x: x)
+
+    def runBlock(self, x):
+        return self.module(x)
+
+    def runLateral(self, i, x):
+        raise NotImplementedError
+
+    def runActivation(self, x):
+        return self.activation(x)
+
+    def getData(self):
+        data = dict()
+        data["type"] = "Lambda"
+        data["input_size"] = self.inSize
+        data["output_size"] = self.outSize
+        return data
+
+    def getShape(self):
+        return (self.inSize, self.outSize)
+
+
+
+
+
+
 """
 A ProgBlock containing a single Conv2D layer (nn.Conv2d).
 Activation function can be customized but defaults to nn.ReLU.
@@ -90,6 +129,9 @@ class ProgConv2DBlock(ProgBlock):
 
 
 
+
+
+
 """
 A ProgBlock containing a single fully connected layer (nn.Linear) and a batch norm.
 Activation function can be customized but defaults to nn.ReLU.
@@ -129,6 +171,8 @@ class ProgDenseBNBlock(ProgBlock):
 
     def getShape(self):
         return (self.inSize, self.outSize)
+
+
 
 
 
@@ -215,6 +259,8 @@ class ProgMultiDense(ProgMultiBlock):
 
     def getShape(self):
         return (self.inSizes, self.outSizes)
+
+
 
 
 
@@ -314,6 +360,9 @@ class ProgMultiDenseBN(ProgMultiBlock):
 
 
 
+
+
+
 """
 A modified ProgMultiDense that sums all outputs and passed inputs to produce a single output.
 The single output can be used as input to a simple ProgBlock.
@@ -350,6 +399,8 @@ class ProgMultiDenseSum(ProgMultiDense):
             else:                 latList.append(None)
         data["lateral_states"] = latLists
         return data
+
+
 
 
 

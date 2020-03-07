@@ -16,7 +16,7 @@ from .ProgBlocks import ProgMultiDenseConcat
 
 from .ProgNetTarget import ProgNetWithTarget
 
-
+from .DynamicProgNet import DynamicProgNet
 
 
 #===============================================================================

@@ -51,6 +51,26 @@ class ProgBlock(nn.Module):
     def getShape(self):
         raise NotImplementedError
 
+    """
+    Returns True if block is meant to contain laterals.
+    Returns False if block is meant to be a utility with not lateral inputs.
+    Default is True.
+    """
+    def isLateralized(self):
+        return True
+
+
+
+
+
+
+"""
+Conveniance class for un-lateralized blocks.
+"""
+class ProgInertBlock(ProgBlock):
+    def isLateralized(self):
+        return False
+
 
 
 
@@ -139,7 +159,7 @@ class ProgColumn(nn.Module):
 
     def __forwardSimple(self, x, row, block):
         currOutput = block.runBlock(x)
-        if row == 0 or len(self.parentCols) < 1:
+        if not block.isLateralized() or row == 0 or len(self.parentCols) < 1:
             y = block.runActivation(currOutput)
         else:
             for c, col in enumerate(self.parentCols):
@@ -151,7 +171,7 @@ class ProgColumn(nn.Module):
         errStr = "Multiblock input must be a python list of inputs."
         assert isinstance(x, list), errStr
         currOutput = block.runBlock(x)
-        if row == 0 or len(self.parentCols) < 1:
+        if not block.isLateralized() or row == 0 or len(self.parentCols) < 1:
             y = block.runActivation(currOutput)
         else:
             for c, col in enumerate(self.parentCols):
