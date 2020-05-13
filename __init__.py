@@ -15,11 +15,11 @@ from .ProgBlocks import ProgMultiDenseConcat
 from .ProgBlocks import ProgLambdaBlock
 from .ProgBlocks import ProgInertBlock
 
-from .ConvBlocks import ProgConv2DBlock
-from .ConvBlocks import ProgConvTranspose2DBNBlock
-from .ConvBlocks import ProgConv2DBNBlock
-from .ConvBlocks import ProgDeformConv2DBlock
-from .ConvBlocks import ProgDeformConv2DBNBlock
+from .extra_blocks.ConvBlocks import ProgConv2DBlock
+from .extra_blocks.ConvBlocks import ProgConvTranspose2DBNBlock
+from .extra_blocks.ConvBlocks import ProgConv2DBNBlock
+from .extra_blocks.ConvBlocks import ProgDeformConv2DBlock
+from .extra_blocks.ConvBlocks import ProgDeformConv2DBNBlock
 
 from .ProgNetTarget import ProgNetWithTarget
 

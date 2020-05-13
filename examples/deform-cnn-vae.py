@@ -3,8 +3,7 @@ import os
 import torch
 import torch.nn as nn
 import itertools
-
-#os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+import argparse
 
 import torchvision
 from torchvision import datasets, transforms
@@ -13,21 +12,25 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
 from torch.utils import data
 
-sys.path.append("../")
+sys.path.append("../..")
 
 from Doric import ProgNet, ProgColumn, ProgColumnGenerator
 from Doric import ProgDenseBlock, ProgLambdaBlock, ProgInertBlock, ProgDeformConv2DBlock, ProgDeformConv2DBNBlock, ProgConvTranspose2DBNBlock
 
-z_dim = 128
-epochs = 50
-batch_size = 50
-learning_rate = 0.0005
+parser = argparse.ArgumentParser()
+parser.add_argument("--cpu", help="Specify whether the CPU should be used", type=bool, nargs='?', const=True, default=False)
+parser.add_argument("--output", help="Specify where to log the output to", type=str, default="output")
+parser.add_argument("--batch_size", help="Batch size", type=int, default=100)
+parser.add_argument("--epochs", help="Epochs", type=int, default=50)
+parser.add_argument("--lr", help="Epochs", type=float, default=0.0005)
+args = parser.parse_args()
 
-SAMPLE_DIR = 'output/vae-cnn-2'
-MODEL_SAVE_PATH = 'model_2'
+z_dim = 128
+
+MODEL_SAVE_PATH = 'model'
 
 writer = SummaryWriter()
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu' if args.cpu or not torch.cuda.is_available() else 'cuda:0')
 
 # global variables to store the mean and variance
 g_mu = None
@@ -120,8 +123,8 @@ class VariationalAutoEncoderModelGenerator(ProgColumnGenerator):
         cols.append(ProgLambdaBlock(512 * 4, 512, lambda x: x.view(-1, 512, 2, 2)))
         cols.append(ProgConvTranspose2DBNBlock(512, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(256, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
-        cols.append(ProgConvTranspose2DBNBlock(128, 63, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
-        cols.append(ProgConvTranspose2DBNBlock(63, 32, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
+        cols.append(ProgConvTranspose2DBNBlock(128, 64, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
+        cols.append(ProgConvTranspose2DBNBlock(64, 32, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(32, 32, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgDeformConv2DBlock(32, 3, 3, len(parentCols), activation=nn.Tanh(), layerArgs={'padding': 1}))
         
@@ -147,15 +150,16 @@ def train(model, batch_size, epochs, device, transform_method='none', skip_train
                                             transforms.CenterCrop(148),
                                             transforms.Resize(64),
                                             transforms.ToTensor()])
-    dataset = datasets.ImageFolder('data/img_align_celeba', transform)
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    dataset = datasets.ImageFolder('../data/img_align_celeba', transform)
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     for epoch in range(epochs):
         for i, (x, _) in enumerate(data_loader):
 
             # Create a copy of the original (clean) batch
-            x_original = x.to(device)
+            with torch.no_grad():
+                x_original = x.to(device)
             # Apply any transformation specified
             x = transform_input(x, transform_method)
             
@@ -192,7 +196,7 @@ def train(model, batch_size, epochs, device, transform_method='none', skip_train
         with torch.no_grad():
             # Save the model output of the last batch as [original, augmented input, output]
             x_concat = torch.cat([x_original.cpu().data, x.cpu().data, x_reconst.cpu().data], dim=3)
-            save_image(x_concat, os.path.join(SAMPLE_DIR, 'col-{}-reconst-{}.png'.format(col, epoch+1)))
+            save_image(x_concat, os.path.join(args.output, 'col-{}-reconst-{}.png'.format(col, epoch+1)))
             writer.add_image("Column {}".format(col), torchvision.utils.make_grid(x_concat), epoch+1)
 
     torch.save(model.state_dict(), "{}-{}.pt".format(MODEL_SAVE_PATH, col))
@@ -210,16 +214,16 @@ if __name__ == "__main__":
     model = ProgNet(colGen=VariationalAutoEncoderModelGenerator())
 
     # Col 1
-    train(model, batch_size, epochs, device, transform_method='none')
+    train(model, args.batch_size, args.epochs, device, transform_method='none')
     model.freezeAllColumns()
     # Col 2
-    train(model, batch_size, epochs, device, transform_method='denoise')
+    train(model, args.batch_size, args.epochs, device, transform_method='denoise')
     model.freezeAllColumns()
     # Col 3
-    train(model, batch_size, epochs, device, transform_method='colorize')
+    train(model, args.batch_size, args.epochs, device, transform_method='colorize')
     model.freezeAllColumns()
-    mask_dataset = datasets.ImageFolder('data/mask', transforms.ToTensor())
-    mask_loader = torch.utils.data.DataLoader(mask_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-     Col 4
+    mask_dataset = datasets.ImageFolder('../data/mask', transforms.ToTensor())
+    mask_loader = torch.utils.data.DataLoader(mask_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+    #Col 4
     mask_loader_iter = itertools.cycle(mask_loader)
-    train(model, batch_size, epochs, device, transform_method='inpaint', kl_weight=3e-6)
+    train(model, args.batch_size, args.epochs, device, transform_method='inpaint', kl_weight=3e-6)

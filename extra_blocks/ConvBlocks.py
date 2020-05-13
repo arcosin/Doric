@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .ProgNet import ProgBlock
+from ..ProgNet import ProgBlock
 from .deform_conv2d import *
 
 """
