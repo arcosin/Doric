@@ -2,7 +2,7 @@
 # Doric
 --------------------------------------------------------------------------------
 
-![Doric_Logo.png](/Doric_Logo.png)
+![Doric_Logo.png](/Doric_Logo_Small.png)
 
 Doric is a lightweight library for implementing and extending progressive neural networks (https://arxiv.org/pdf/1606.04671.pdf).
 It is a free and open-source library built atop PyTorch.
