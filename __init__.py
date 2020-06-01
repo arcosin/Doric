@@ -25,5 +25,7 @@ from .ProgNetTarget import ProgNetWithTarget
 
 from .DynamicProgNet import DynamicProgNet
 
+DORIC_VERSION = "1.0.0"
+
 
 #===============================================================================
