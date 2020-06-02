@@ -21,11 +21,7 @@ from .extra_blocks.ConvBlocks import ProgConv2DBNBlock
 from .extra_blocks.ConvBlocks import ProgDeformConv2DBlock
 from .extra_blocks.ConvBlocks import ProgDeformConv2DBNBlock
 
-from .ProgNetTarget import ProgNetWithTarget
-
-from .DynamicProgNet import DynamicProgNet
-
-DORIC_VERSION = "1.0.0"
+DORIC_VERSION = "1.0.1"
 
 
 #===============================================================================
