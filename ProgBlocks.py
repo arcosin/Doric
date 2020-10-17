@@ -339,8 +339,8 @@ class ProgMultiDense(ProgMultiBlock):
         data["state_dicts"] = modList
         latLists = []
         for lat in self.laterals:
-            if lat is not None:   latList = [l.state_dict() for l in lat]
-            else:                 latList.append(None)
+            if lat is not None:   latLists = [l.state_dict() for l in lat]
+            else:                 latLists.append(None)
         data["lateral_states"] = latLists
         return data
 
@@ -437,8 +437,8 @@ class ProgMultiDenseBN(ProgMultiBlock):
         data["state_dicts"] = modList
         latLists = []
         for lat in self.laterals:
-            if lat is not None:   latList = [l.state_dict() for l in lat]
-            else:                 latList.append(None)
+            if lat is not None:   latLists = [l.state_dict() for l in lat]
+            else:                 latLists.append(None)
         data["lateral_states"] = latLists
         return data
 
@@ -482,8 +482,8 @@ class ProgMultiDenseSum(ProgMultiDense):
         data["state_dicts"] = modList
         latLists = []
         for lat in self.laterals:
-            if lat is not None:   latList = [l.state_dict() for l in lat]
-            else:                 latList.append(None)
+            if lat is not None:   latLists = [l.state_dict() for l in lat]
+            else:                 latLists.append(None)
         data["lateral_states"] = latLists
         return data
 
@@ -522,8 +522,8 @@ class ProgMultiDenseConcat(ProgMultiDense):
         data["state_dicts"] = modList
         latLists = []
         for lat in self.laterals:
-            if lat is not None:   latList = [l.state_dict() for l in lat]
-            else:                 latList.append(None)
+            if lat is not None:   latLists = [l.state_dict() for l in lat]
+            else:                 latLists.append(None)
         data["lateral_states"] = latLists
         return data
 
