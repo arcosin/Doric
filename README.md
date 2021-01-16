@@ -12,4 +12,8 @@ We support inert blocks (blocks without laterals) and multi-channel blocks.
 
 Thank you to Case Wright for help in developing Doric and writing all of our autoencoder tests, and to Molly Jacobson for the Doric logo.
 
+
+Changes:
+- 1/15/2021 -- 1.1.0: ProgRes update! Skip connections added. Changes made to multichannel blocks. Several utilities added.
+
 --------------------------------------------------------------------------------
