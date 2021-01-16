@@ -44,20 +44,14 @@ class ProgBlock(nn.Module):
         raise NotImplementedError
 
     """
-    Returns the shape of the block as a 2-element tuple.
-    The 0th item is the input shape.
-    The 1st item is the output shape.
-    """
-    def getShape(self):
-        raise NotImplementedError
-
-    """
     Returns True if block is meant to contain laterals.
     Returns False if block is meant to be a utility with not lateral inputs.
     Default is True.
     """
     def isLateralized(self):
         return True
+
+
 
 
 
@@ -79,6 +73,7 @@ class ProgInertBlock(ProgBlock):
 """
 A special case of ProgBlock with multiple paths.
 """
+'''
 class ProgMultiBlock(ProgBlock):
     """
     Returns a list of booleans (pass_list).
@@ -88,7 +83,10 @@ class ProgMultiBlock(ProgBlock):
     def getPassDescriptor(self):
         raise NotImplementedError
 
+    def getNumChannels(self):
+        raise NotImplementedError
 
+'''
 
 
 
@@ -116,6 +114,11 @@ A column representing one sequential ANN with all of its lateral modules.
 Outputs of the last forward run are stored for child column laterals.
 Output of each layer is calculated as:
 y = activation(block(x) + sum(laterals(x)))
+
+colID -- A unique identifier for the column.
+blockList -- A list of ProgBlocks that will be run sequentially.
+parentCols -- A list of pointers to columns that will be laterally connectected.
+              If the list is empty, the column is unlateralized.
 """
 class ProgColumn(nn.Module):
     def __init__(self, colID, blockList, parentCols = []):
@@ -140,7 +143,7 @@ class ProgColumn(nn.Module):
         data["colID"] = self.colID
         data["rows"] = self.numRows
         data["frozen"] = self.isFrozen
-        data["last_outputs"] = self.lastOutputList
+        #data["last_outputs"] = self.lastOutputList
         data["blocks"] = [block.getData() for block in self.blocks]
         data["parent_cols"] = [col.colID for col in self.parentCols]
         return data
@@ -149,22 +152,25 @@ class ProgColumn(nn.Module):
         outputs = []
         x = input
         for r, block in enumerate(self.blocks):
-            if isinstance(block, ProgMultiBlock):
-                y = self.__forwardMulti(x, r, block)
-            else:
-                y = self.__forwardSimple(x, r, block)
+            #if isinstance(block, ProgMultiBlock):
+                #y = self.__forwardMulti(x, r, block)
+            #else:
+            y = self.__forwardSimple(x, r, block)
             outputs.append(y)
             x = y
         self.lastOutputList = outputs
         return outputs[-1]
 
-    def getShape(self):
-        shapeArr = [block.getShape() for block in self.blocks]
-        return shapeArr
-
     def __forwardSimple(self, x, row, block):
         currOutput = block.runBlock(x)
         if not block.isLateralized() or row == 0 or len(self.parentCols) < 1:
+            y = block.runActivation(currOutput)
+        elif isinstance(currOutput, list):
+            for c, col in enumerate(self.parentCols):
+                lats = block.runLateral(c, col.lastOutputList[row - 1])
+                for i in range(len(currOutput)):
+                    if currOutput[i] is not None and lats[i] is not None:
+                        currOutput[i] += lats[i]
             y = block.runActivation(currOutput)
         else:
             for c, col in enumerate(self.parentCols):
@@ -173,8 +179,8 @@ class ProgColumn(nn.Module):
         return y
 
     def __forwardMulti(self, x, row, block):
-        errStr = "Multiblock input must be a python list of inputs."
-        assert isinstance(x, list), errStr
+        if not isinstance(x, list):
+            raise ValueError("[Doric]: Multiblock input must be a python list of inputs.")
         currOutput = block.runBlock(x)
         if not block.isLateralized() or row == 0 or len(self.parentCols) < 1:
             y = block.runActivation(currOutput)
@@ -204,30 +210,28 @@ class ProgNet(nn.Module):
         self.numCols = 0
         self.colMap = dict()
         self.colGen = colGen
-        self.colShape = None
 
     def addColumn(self, col = None, msg = None):
         if not col:
-            assert self.colGen, "No column or generator supplied."
+            if self.colGen is None:
+                raise ValueError("[Doric]: No column or generator supplied.")
             parents = [colRef for colRef in self.columns]
             col = self.colGen.generateColumn(parents, msg)
-        if self.colShape is None:
-            self.colShape = col.getShape()
-        else:
-            #assert self.colShape == col.getShape()
-            pass   #TODO: make shape check work with different output sizes.
         self.columns.append(col)
-        assert not col.colID in self.colMap, "Column ID must be unique."
+        if col.colID in self.colMap:
+            raise ValueError("[Doric]: Column ID must be unique.")
         self.colMap[col.colID] = self.numCols
         if self.numRows is None:
             self.numRows = col.numRows
         else:
-            assert self.numRows == col.numRows, "Each column must have equal number of rows."
+            if self.numRows != col.numRows:
+                raise ValueError("[Doric]: Each column must have equal number of rows.")
         self.numCols += 1
         return col.colID
 
     def freezeColumn(self, id):
-        assert id in self.colMap, "No column with ID %s found." % str(id)
+        if id not in self.colMap:
+            raise ValueError("[Doric]: No column with ID %s found." % str(id))
         col = self.columns[self.colMap[id]]
         col.freeze()
 
@@ -236,7 +240,8 @@ class ProgNet(nn.Module):
             col.freeze()
 
     def unfreezeColumn(self, id):
-        assert id in self.colMap, "No column with ID %s found." % str(id)
+        if id not in self.colMap:
+            raise ValueError("[Doric]: No column with ID %s found." % str(id))
         col = self.columns[self.colMap[id]]
         col.freeze(unfreeze = True)
 
@@ -245,23 +250,32 @@ class ProgNet(nn.Module):
             col.freeze(unfreeze = True)
 
     def isColumnFrozen(self, id):
-        assert id in self.colMap, "No column with ID %s found." % str(id)
+        if id not in self.colMap:
+            raise ValueError("[Doric]: No column with ID %s found." % str(id))
         col = self.columns[self.colMap[id]]
         return col.isFrozen
 
     def getColumn(self, id):
-        assert id in self.colMap, "No column with ID %s found." % str(id)
+        if id not in self.colMap:
+            raise ValueError("[Doric]: No column with ID %s found." % str(id))
         col = self.columns[self.colMap[id]]
         return col
 
     def forward(self, id, x):
-        assert self.numCols > 0, "ProgNet cannot be run without at least one column."
-        assert id in self.colMap, "Selected column has not been registered."
+        if self.numCols <= 0:
+            raise ValueError("[Doric]: ProgNet cannot be run without at least one column.")
+        if id not in self.colMap:
+            raise ValueError("[Doric]: No column with ID %s found." % str(id))
         colToOutput = self.colMap[id]
         for i, col in enumerate(self.columns):
             y = col(x)
             if i == colToOutput:
                 return y
+
+    def getData(self):
+        data = dict()
+        data["cols"] = [c.getData() for c in self.columns]
+        return data
 
 
 

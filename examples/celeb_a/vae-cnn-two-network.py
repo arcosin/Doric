@@ -8,10 +8,10 @@ from torchvision import datasets, transforms
 import torch.nn.functional as F
 from torchvision.utils import save_image
 
-sys.path.append("../")
+sys.path.append("../../../")
 
 from Doric import ProgNet, ProgColumn, ProgColumnGenerator
-from Doric import ProgDenseBlock, ProgLambdaBlock, ProgInertBlock, ProgConv2DBlock, ProgConv2DBNBlock, ProgConvTranspose2DBNBlock
+from Doric import ProgDenseBlock, ProgLambda, ProgInertBlock, ProgConv2DBlock, ProgConv2DBNBlock, ProgConvTranspose2DBNBlock
 
 z_dim = 128
 epochs = 1
@@ -84,10 +84,10 @@ class EncoderModelGenerator(ProgColumnGenerator):
         b3 = ProgConv2DBNBlock(64, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
         b4 = ProgConv2DBNBlock(128, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
         b5 = ProgConv2DBNBlock(256, 512, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
-        b6 = ProgLambdaBlock(512, 512 * 4, lambda x: torch.flatten(x, start_dim=1))
+        b6 = ProgLambda(lambda x: torch.flatten(x, start_dim=1))
 
         b7 = ProgVariationalBlock(512 * 4, 128, len(parentCols))
-        b8 = ProgLambdaBlock(128, 128, reparamaterize)
+        b8 = ProgLambda(reparamaterize)
         c = ProgColumn(self.__genID(), [b1, b2, b3, b4, b5, b6, b7, b8], parentCols = parentCols)
         return c
 
@@ -102,7 +102,7 @@ class DecoderModelGenerator(ProgColumnGenerator):
 
     def generateColumn(self, parentCols, msg = None):
         b9 = ProgDenseBlock(128, 512 * 4, len(parentCols), activation=None)
-        b10 = ProgLambdaBlock(512 * 4, 512, lambda x: x.view(-1, 512, 2, 2))
+        b10 = ProgLambda(lambda x: x.view(-1, 512, 2, 2))
         b11 = ProgConvTranspose2DBNBlock(512, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
         b12 = ProgConvTranspose2DBNBlock(256, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
         b13 = ProgConvTranspose2DBNBlock(128, 64, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
@@ -141,7 +141,7 @@ def train(encoder, decoder, epochs, data_loader, eoptimizer, doptimizer, col, de
             reconst_loss = (1. / 10.0) * reconst_loss.mean()
 
             kl_div = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-            
+
             # Backprop and optimize
             #loss = reconst_loss + KL_DIV_WEIGHT * kl_div
             loss = reconst_loss + 1.0 * KL_DIV_WEIGHT * kl_div
@@ -150,18 +150,18 @@ def train(encoder, decoder, epochs, data_loader, eoptimizer, doptimizer, col, de
             loss.backward()
             eoptimizer.step()
             doptimizer.step()
-            
+
             if (i+1) % 10 == 0:
-                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}, Loss: {:.4f}" 
+                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}, Loss: {:.4f}"
                     .format(col, epoch+1, epochs, i+1, len(data_loader), reconst_loss.item(), kl_div.item(), loss.item()))
-        
+
         with torch.no_grad():
             # Save the sampled images
             z = torch.randn(num_samples, z_dim)
             z = z.to(device)
             out = decoder(col, z)
             save_image(out, os.path.join(samples_dir, 'sampled/col-{}-sampled-{}.png'.format(col, epoch+1)))
-        
+
             # Save the reconstructed images
             out = encoder(col, x)
             out = decoder(col, out)

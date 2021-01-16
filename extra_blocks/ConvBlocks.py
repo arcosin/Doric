@@ -3,6 +3,11 @@ import torch.nn as nn
 from ..ProgNet import ProgBlock
 from .deform_conv2d import *
 
+I_FUNCTION = (lambda x : x)
+
+
+
+
 """
 A ProgBlock containing a single Conv2D layer (nn.Conv2d).
 Activation function can be customized but defaults to nn.ReLU.
@@ -10,11 +15,14 @@ Stride, padding, dilation, groups, bias, and padding_mode can be set with layerA
 """
 
 class ProgConv2DBlock(ProgBlock):
-    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict()):
+    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict(), skipConn = False, lambdaSkip = I_FUNCTION):
         super().__init__()
         self.numLaterals = numLaterals
         self.inSize = inSize
         self.outSize = outSize
+        self.skipConn = skipConn
+        self.skipVar = None
+        self.skipFunction = lambdaSkip
         self.kernSize = kernelSize
         self.module = nn.Conv2d(inSize, outSize, kernelSize, **layerArgs)
         self.laterals = nn.ModuleList([nn.Conv2d(inSize, outSize, kernelSize, **layerArgs) for _ in range(numLaterals)])
@@ -22,6 +30,8 @@ class ProgConv2DBlock(ProgBlock):
         else:                    self.activation = activation
 
     def runBlock(self, x):
+        if self.skipConn:
+            self.skipVar = x
         return self.module(x)
 
     def runLateral(self, i, x):
@@ -29,6 +39,8 @@ class ProgConv2DBlock(ProgBlock):
         return lat(x)
 
     def runActivation(self, x):
+        if self.skipConn and self.skipVar is not None:
+            x = x + self.skipFunction(self.skipVar)
         return self.activation(x)
 
     def getData(self):
@@ -37,12 +49,11 @@ class ProgConv2DBlock(ProgBlock):
         data["input_size"] = self.inSize
         data["output_size"] = self.outSize
         data["kernel_size"] = self.kernSize
-        data["state_dict"] = self.module.state_dict()
-        data["lateral_states"] = [l.state_dict() for l in self.laterals]
+        data["skip"] = self.skipConn
         return data
 
-    def getShape(self):
-        return (self.inSize, self.outSize)
+
+
 
 
 """
@@ -52,11 +63,14 @@ Stride, padding, dilation, groups, bias, and padding_mode can be set with layerA
 """
 
 class ProgConv2DBNBlock(ProgBlock):
-    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict(), bnArgs = dict()):
+    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict(), bnArgs = dict(), skipConn = False, lambdaSkip = I_FUNCTION):
         super().__init__()
         self.numLaterals = numLaterals
         self.inSize = inSize
         self.outSize = outSize
+        self.skipConn = skipConn
+        self.skipVar = None
+        self.skipFunction = lambdaSkip
         self.kernSize = kernelSize
         self.module = nn.Conv2d(inSize, outSize, kernelSize, **layerArgs)
         self.moduleBN = nn.BatchNorm2d(outSize, **bnArgs)
@@ -66,6 +80,8 @@ class ProgConv2DBNBlock(ProgBlock):
         else:                    self.activation = activation
 
     def runBlock(self, x):
+        if self.skipConn:
+            self.skipVar = x
         return self.moduleBN(self.module(x))
 
     def runLateral(self, i, x):
@@ -74,6 +90,8 @@ class ProgConv2DBNBlock(ProgBlock):
         return bn(lat(x))
 
     def runActivation(self, x):
+        if self.skipConn and self.skipVar is not None:
+            x = x + self.skipFunction(self.skipVar)
         return self.activation(x)
 
     def getData(self):
@@ -82,13 +100,8 @@ class ProgConv2DBNBlock(ProgBlock):
         data["input_size"] = self.inSize
         data["output_size"] = self.outSize
         data["kernel_size"] = self.kernSize
-        data["state_dict"] = self.module.state_dict()
-        data["lateral_states"] = [l.state_dict() for l in self.laterals]
+        data["skip"] = self.skipConn
         return data
-
-    def getShape(self):
-        return (self.inSize, self.outSize)
-
 
 
 """
@@ -98,11 +111,14 @@ Stride, padding, dilation, groups, bias, and padding_mode can be set with layerA
 """
 
 class ProgConvTranspose2DBNBlock(ProgBlock):
-    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict(), bnArgs = dict()):
+    def __init__(self, inSize, outSize, kernelSize, numLaterals, activation = nn.ReLU(), layerArgs = dict(), bnArgs = dict(), skipConn = False, lambdaSkip = I_FUNCTION):
         super().__init__()
         self.numLaterals = numLaterals
         self.inSize = inSize
         self.outSize = outSize
+        self.skipConn = skipConn
+        self.skipVar = None
+        self.skipFunction = lambdaSkip
         self.kernSize = kernelSize
         self.module = nn.ConvTranspose2d(inSize, outSize, kernelSize, **layerArgs)
         self.moduleBN = nn.BatchNorm2d(outSize, **bnArgs)
@@ -112,6 +128,8 @@ class ProgConvTranspose2DBNBlock(ProgBlock):
         else:                    self.activation = activation
 
     def runBlock(self, x):
+        if self.skipConn:
+            self.skipVar = x
         return self.moduleBN(self.module(x))
 
     def runLateral(self, i, x):
@@ -120,6 +138,8 @@ class ProgConvTranspose2DBNBlock(ProgBlock):
         return bn(lat(x))
 
     def runActivation(self, x):
+        if self.skipConn and self.skipVar is not None:
+            x = x + self.skipFunction(self.skipVar)
         return self.activation(x)
 
     def getData(self):
@@ -128,8 +148,7 @@ class ProgConvTranspose2DBNBlock(ProgBlock):
         data["input_size"] = self.inSize
         data["output_size"] = self.outSize
         data["kernel_size"] = self.kernSize
-        data["state_dict"] = self.module.state_dict()
-        data["lateral_states"] = [l.state_dict() for l in self.laterals]
+        data["skip"] = self.skipConn
         return data
 
     def getShape(self):

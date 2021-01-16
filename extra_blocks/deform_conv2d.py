@@ -4,6 +4,7 @@ from torch import nn
 """
 Deformable Conv2d module, taken from https://github.com/4uiiurz1/pytorch-deform-conv-v2/blob/master/deform_conv_v2.py
 """
+
 class DeformConv2d(nn.Module):
     def __init__(self, inc, outc, kernel_size=3, padding=1, stride=1, bias=None, modulation=False):
         """

@@ -12,10 +12,10 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
 from torch.utils import data
 
-sys.path.append("../..")
+sys.path.append("../../../")
 
 from Doric import ProgNet, ProgColumn, ProgColumnGenerator
-from Doric import ProgDenseBlock, ProgLambdaBlock, ProgInertBlock, ProgDeformConv2DBlock, ProgDeformConv2DBNBlock, ProgConvTranspose2DBNBlock
+from Doric import ProgDenseBlock, ProgLambda, ProgInertBlock, ProgDeformConv2DBlock, ProgDeformConv2DBNBlock, ProgConvTranspose2DBNBlock
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--cpu", help="Specify whether the CPU should be used", type=bool, nargs='?', const=True, default=False)
@@ -113,21 +113,21 @@ class VariationalAutoEncoderModelGenerator(ProgColumnGenerator):
         cols.append(ProgDeformConv2DBNBlock(64, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1}))
         cols.append(ProgDeformConv2DBNBlock(128, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1}))
         cols.append(ProgDeformConv2DBNBlock(256, 512, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1}))
-        cols.append(ProgLambdaBlock(512, 512 * 4, lambda x: torch.flatten(x, start_dim=1)))
+        cols.append(ProgLambda(lambda x: torch.flatten(x, start_dim=1)))
 
         cols.append(ProgVariationalBlock(512 * 4, z_dim, len(parentCols)))
-        cols.append(ProgLambdaBlock(z_dim, z_dim, reparamaterize))
+        cols.append(ProgLambda(reparamaterize))
 
         # Decode
         cols.append(ProgDenseBlock(z_dim, 512 * 4, len(parentCols), activation=None))
-        cols.append(ProgLambdaBlock(512 * 4, 512, lambda x: x.view(-1, 512, 2, 2)))
+        cols.append(ProgLambda(lambda x: x.view(-1, 512, 2, 2)))
         cols.append(ProgConvTranspose2DBNBlock(512, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(256, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(128, 64, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(64, 32, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgConvTranspose2DBNBlock(32, 32, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1}))
         cols.append(ProgDeformConv2DBlock(32, 3, 3, len(parentCols), activation=nn.Tanh(), layerArgs={'padding': 1}))
-        
+
         return ProgColumn(self.__genID(), cols, parentCols = parentCols)
 
     def __genID(self):
@@ -162,7 +162,7 @@ def train(model, batch_size, epochs, device, transform_method='none', skip_train
                 x_original = x.to(device)
             # Apply any transformation specified
             x = transform_input(x, transform_method)
-            
+
             x = x.to(device)
 
             # Forward
@@ -182,9 +182,9 @@ def train(model, batch_size, epochs, device, transform_method='none', skip_train
             loss.backward()
 
             optimizer.step()
-            
+
             if (i+1) % 10 == 0:
-                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}, Loss: {:.4f}" 
+                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}, Loss: {:.4f}"
                     .format(col, epoch+1, epochs, i+1, len(data_loader), reconst_loss.item(), kl_div.item(), loss.item()))
 
                 # Tensorboard logging
@@ -192,7 +192,7 @@ def train(model, batch_size, epochs, device, transform_method='none', skip_train
                 writer.add_scalar('Column {} Train/Reconst Loss'.format(col), reconst_loss.item(), niter)
                 writer.add_scalar('Column {} Train/KL Div'.format(col), kl_div.item(), niter)
                 writer.add_scalar('Column {} Train/Loss'.format(col), loss.item(), niter)
-        
+
         with torch.no_grad():
             # Save the model output of the last batch as [original, augmented input, output]
             x_concat = torch.cat([x_original.cpu().data, x.cpu().data, x_reconst.cpu().data], dim=3)

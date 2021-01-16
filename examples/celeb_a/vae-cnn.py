@@ -8,10 +8,10 @@ from torchvision import datasets, transforms
 import torch.nn.functional as F
 from torchvision.utils import save_image
 
-sys.path.append("../")
+sys.path.append("../../../")
 
 from Doric import ProgNet, ProgColumn, ProgColumnGenerator
-from Doric import ProgDenseBlock, ProgLambdaBlock, ProgInertBlock, ProgConv2DBlock, ProgConv2DBNBlock, ProgConvTranspose2DBNBlock
+from Doric import ProgDenseBlock, ProgLambda, ProgInertBlock, ProgConv2DBlock, ProgConv2DBNBlock, ProgConvTranspose2DBNBlock
 
 z_dim = 128
 epochs = 50
@@ -83,14 +83,14 @@ class VariationalAutoEncoderModelGenerator(ProgColumnGenerator):
         b3 = ProgConv2DBNBlock(64, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
         b4 = ProgConv2DBNBlock(128, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
         b5 = ProgConv2DBNBlock(256, 512, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1})
-        b6 = ProgLambdaBlock(512, 512 * 4, lambda x: torch.flatten(x, start_dim=1))
+        b6 = ProgLambda(lambda x: torch.flatten(x, start_dim=1))
 
         b7 = ProgVariationalBlock(512 * 4, 128, len(parentCols))
-        b8 = ProgLambdaBlock(128, 128, reparamaterize)
+        b8 = ProgLambda(reparamaterize)
 
         # Decode
         b9 = ProgDenseBlock(128, 512 * 4, len(parentCols), activation=None)
-        b10 = ProgLambdaBlock(512 * 4, 512, lambda x: x.view(-1, 512, 2, 2))
+        b10 = ProgLambda(lambda x: x.view(-1, 512, 2, 2))
         b11 = ProgConvTranspose2DBNBlock(512, 256, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
         b12 = ProgConvTranspose2DBNBlock(256, 128, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
         b13 = ProgConvTranspose2DBNBlock(128, 64, 3, len(parentCols), activation=nn.LeakyReLU(), layerArgs={'stride': 2, 'padding': 1, 'output_padding': 1})
@@ -120,17 +120,17 @@ def train(model, epochs, data_loader, optimizer, col, device):
             # KL Divergence
             reconst_loss = F.mse_loss(x_reconst, x)
             kl_div = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
-            
+
             # Backprop and optimize
             loss = reconst_loss + KL_DIV_WEIGHT * kl_div
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            
+
             if (i+1) % 10 == 0:
-                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}" 
+                print ("Col: {}, Epoch[{}/{}], Step [{}/{}], Reconst Loss: {:.4f}, KL Div: {:.4f}"
                     .format(col, epoch+1, epochs, i+1, len(data_loader), reconst_loss.item(), kl_div.item()))
-        
+
                 with torch.no_grad():
                     # Save the reconstructed images
                     x_concat = torch.cat([x.cpu().data, x_reconst.cpu().data], dim=3)
